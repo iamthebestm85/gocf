@@ -18,7 +18,7 @@ var HeaderOrder = []string{
 	"sec-fetch-dest",
 	"accept-encoding",
 	"accept-language",
-	priority",
+	"priority",
 }
 
 var PseudoHeaderOrder = []string{

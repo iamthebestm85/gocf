@@ -10,6 +10,7 @@ import (
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
+	"github.com/ysmood/gson"
 )
 
 type Result struct {
@@ -322,13 +323,14 @@ func isManagedChallengePage(pg *rod.Page) bool {
 	if result == nil {
 		return false
 	}
-	isChallenge, _ := result.Value.Get("isChallenge").Bool()
+	isChallenge := result.Value.Get("isChallenge").Bool()
 	return isChallenge
 }
 
 func waitForChallengeCompletion(ctx context.Context, pg *rod.Page, timeout time.Duration) (*Result, error) {
 	deadline := time.Now().Add(timeout)
 	var lastToken string
+	var lastURL string
 
 	for time.Now().Before(deadline) {
 		select {
@@ -383,16 +385,17 @@ func waitForChallengeCompletion(ctx context.Context, pg *rod.Page, timeout time.
 			continue
 		}
 
-		url, _ := result.Value.Get("url").String()
-		title, _ := result.Value.Get("title").String()
-		token, _ := result.Value.Get("token").String()
-		isWaiting, _ := result.Value.Get("isWaiting").Bool()
-		isChallengePage, _ := result.Value.Get("isChallengePage").Bool()
-		hasCfClearance, _ := result.Value.Get("hasCfClearance").Bool()
+		url := result.Value.Get("url").String()
+		_ = result.Value.Get("title").String()
+		token := result.Value.Get("token").String()
+		isWaiting := result.Value.Get("isWaiting").Bool()
+		isChallengePage := result.Value.Get("isChallengePage").Bool()
+		hasCfClearance := result.Value.Get("hasCfClearance").Bool()
 
 		if token != "" {
 			lastToken = token
 		}
+		lastURL = url
 
 		// If we have a token and we're either: waiting for site response, or no longer on challenge page
 		if lastToken != "" && (isWaiting || !isChallengePage || hasCfClearance) {
@@ -417,14 +420,10 @@ func waitForChallengeCompletion(ctx context.Context, pg *rod.Page, timeout time.
 
 	// Return whatever token we found even if challenge didn't fully complete
 	if lastToken != "" {
-		url := ""
-		if result != nil {
-			url, _ = result.Value.Get("url").String()
-		}
 		return &Result{
 			Token:          lastToken,
 			ChallengeSolved: false,
-			FinalURL:       url,
+			FinalURL:       lastURL,
 		}, nil
 	}
 
@@ -473,10 +472,10 @@ func Solve(ctx context.Context, url string, cfg Config) (*Result, error) {
 	// Set extra headers to look more like a real browser
 	proto.NetworkSetExtraHTTPHeaders{
 		Headers: proto.NetworkHeaders{
-			"Accept-Language": proto.String("en-US,en;q=0.9"),
-			"sec-ch-ua":          proto.String(`"Google Chrome";v="138", "Chromium";v="138", "Not_A Brand";v="24"`),
-			"sec-ch-ua-mobile":  proto.String("?0"),
-			"sec-ch-ua-platform": proto.String(`"Windows"`),
+			"Accept-Language":     gson.New("en-US,en;q=0.9"),
+			"sec-ch-ua":           gson.New(`"Google Chrome";v="138", "Chromium";v="138", "Not_A Brand";v="24"`),
+			"sec-ch-ua-mobile":    gson.New("?0"),
+			"sec-ch-ua-platform":  gson.New(`"Windows"`),
 		},
 	}.Call(pg)
 
